@@ -24,8 +24,28 @@ Every error uses this shape:
 | 422 | `UNKNOWN_CATEGORY` | No policy rule for this category at the employee's grade. |
 | 422 | `FUTURE_DATE` | `expense_date` is after today. |
 | 422 | `EXPENSE_TOO_OLD` | `expense_date` is more than 60 days before today. |
+| 401 | `UNAUTHORIZED` | Route needs a signed-in user and the session or bearer token is missing, invalid or expired. |
 | 404 | `NOT_FOUND` | Employee record missing. |
 | 500 | `SERVER_ERROR` | Database or configuration error. |
+
+## Authentication (server helper)
+
+Routes that need a real signed-in user (for example Finance Review) use `lib/server/auth-user.ts`. The existing claim routes still act as E001 until login is wired up.
+
+```ts
+import { requireVerifiedUser } from "@/lib/server/auth-user";
+
+const auth = await requireVerifiedUser();
+if (!auth.ok) return auth.response; // 401 UNAUTHORIZED
+auth.user.id;       // Supabase Auth user id (UUID), verified with auth.getUser()
+auth.user.email;    // string | null
+auth.user.supabase; // client acting as this user (row level security applies)
+```
+
+- The token is read from `Authorization: Bearer <access_token>`, or else from the Supabase session cookie `sb-<project-ref>-auth-token` written by the Supabase browser client.
+- Identity always comes from Supabase Auth, never from an id sent in the request body, and never from the service-role client.
+- `getVerifiedUser()` returns the same user or `null`, for code that is not a route.
+- Expired tokens give 401. The browser client refreshes the session; the server does not.
 
 ## Endpoints
 

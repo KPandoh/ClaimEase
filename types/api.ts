@@ -111,6 +111,7 @@ export const API_ERROR_CODES = [
   "UNKNOWN_CATEGORY", // 422: no policy rule for this category and grade
   "FUTURE_DATE", // 422: expense_date is after today
   "EXPENSE_TOO_OLD", // 422: expense_date is more than 60 days ago
+  "UNAUTHORIZED", // 401: no valid Supabase session or bearer token
   "NOT_FOUND", // 404
   "SERVER_ERROR", // 500
 ] as const;
