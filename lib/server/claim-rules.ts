@@ -11,6 +11,7 @@ import {
  *   1. Expense date cannot be in the future.
  *   2. Expenses older than 60 days cannot be claimed.
  *   3. Amount above the grade's max_amount for the category -> saved as 'flagged' with the reason.
+ *   4. Missing receipt above the rule's receipt_required_above -> saved as 'flagged' with the reason.
  *
  * Pure functions with no I/O, so they can be tested directly and moved
  * into lib/policy/ if Member 4 takes them over.
@@ -69,4 +70,28 @@ export function checkAmount(amount: number, grade: Grade, rule: PolicyRule): Amo
     };
   }
   return { status: "submitted", policy_check: WITHIN_POLICY };
+}
+
+/** Applies amount and receipt rules together, retaining every flag reason. */
+export function checkPolicy(
+  amount: number,
+  hasReceipt: boolean,
+  grade: Grade,
+  rule: PolicyRule,
+): AmountDecision {
+  const amountDecision = checkAmount(amount, grade, rule);
+  const reasons: string[] = [];
+
+  if (amountDecision.status === "flagged") {
+    reasons.push(amountDecision.policy_check);
+  }
+  if (!hasReceipt && amount > rule.receipt_required_above) {
+    reasons.push(
+      `Missing receipt: ${rule.category} claims above ₹${rule.receipt_required_above} require a receipt`,
+    );
+  }
+
+  return reasons.length > 0
+    ? { status: "flagged", policy_check: reasons.join("; ") }
+    : amountDecision;
 }

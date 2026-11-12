@@ -79,6 +79,22 @@ export const ClaimSchema = z.object({
 });
 export type Claim = z.infer<typeof ClaimSchema>;
 
+/** Minimal employee context returned with claims in the Finance Review queue. */
+export const FinanceReviewEmployeeSchema = EmployeeSchema.pick({
+  id: true,
+  name: true,
+  grade: true,
+  department: true,
+  manager_name: true,
+  base_city: true,
+});
+export type FinanceReviewEmployee = z.infer<typeof FinanceReviewEmployeeSchema>;
+
+export const FinanceReviewClaimSchema = ClaimSchema.extend({
+  employee: FinanceReviewEmployeeSchema,
+});
+export type FinanceReviewClaim = z.infer<typeof FinanceReviewClaimSchema>;
+
 // ---------------------------------------------------------------------------
 // Requests
 // ---------------------------------------------------------------------------
@@ -104,6 +120,8 @@ export type CreateClaimRequest = z.input<typeof CreateClaimRequestSchema>;
 export type MeResponse = { employee: Employee };
 export type CategoriesResponse = { categories: PolicyRule[] };
 export type ClaimsListResponse = { claims: Claim[] };
+export type FinanceClaimsListResponse = { claims: FinanceReviewClaim[] };
+export type FinanceClaimReviewResponse = { claim: Claim };
 export type CreateClaimResponse = { claim: Claim };
 
 export const API_ERROR_CODES = [
@@ -112,6 +130,8 @@ export const API_ERROR_CODES = [
   "FUTURE_DATE", // 422: expense_date is after today
   "EXPENSE_TOO_OLD", // 422: expense_date is more than 60 days ago
   "UNAUTHORIZED", // 401: no valid Supabase session or bearer token
+  "FORBIDDEN", // 403: authenticated user lacks required authorization
+  "CLAIM_NOT_REVIEWABLE", // 409: claim is not awaiting finance review
   "NOT_FOUND", // 404
   "SERVER_ERROR", // 500
 ] as const;

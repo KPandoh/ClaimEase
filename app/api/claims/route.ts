@@ -8,7 +8,7 @@ import {
 } from "@/types/api";
 import { getCurrentEmployee, getCurrentEmployeeId } from "@/lib/server/current-employee";
 import { getPolicyRule, insertClaim, listClaims } from "@/lib/server/claims-repo";
-import { checkAmount, checkExpenseDate, todayInIndia } from "@/lib/server/claim-rules";
+import { checkExpenseDate, checkPolicy, todayInIndia } from "@/lib/server/claim-rules";
 import { apiError, serverError } from "@/lib/server/http";
 
 /** The signed-in employee's claims, newest first. */
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const decision = checkAmount(input.amount, employee.grade, rule);
+    const decision = checkPolicy(input.amount, input.has_receipt, employee.grade, rule);
     const claim = await insertClaim({
       employee_id: employee.id,
       category: input.category,

@@ -25,6 +25,8 @@ Every error uses this shape:
 | 422 | `FUTURE_DATE` | `expense_date` is after today. |
 | 422 | `EXPENSE_TOO_OLD` | `expense_date` is more than 60 days before today. |
 | 401 | `UNAUTHORIZED` | Route needs a signed-in user and the session or bearer token is missing, invalid or expired. |
+| 403 | `FORBIDDEN` | The user is authenticated but lacks the required authorization, such as active finance membership. |
+| 409 | `CLAIM_NOT_REVIEWABLE` | The claim has already been reviewed or is not awaiting finance review. |
 | 404 | `NOT_FOUND` | Employee record missing. |
 | 500 | `SERVER_ERROR` | Database or configuration error. |
 
@@ -46,6 +48,7 @@ auth.user.supabase; // client acting as this user (row level security applies)
 - Identity always comes from Supabase Auth, never from an id sent in the request body, and never from the service-role client.
 - `getVerifiedUser()` returns the same user or `null`, for code that is not a route.
 - Expired tokens give 401. The browser client refreshes the session; the server does not.
+- Finance routes return `403 FORBIDDEN` when the signed-in user does not have active finance membership.
 
 ## Endpoints
 
@@ -74,6 +77,51 @@ The signed-in employee's claims, newest first.
 ```json
 { "claims": [ { "id": 5, "employee_id": "E001", "category": "client_entertainment", "amount": 3600, "expense_date": "2026-11-07", "description": "Dinner with Nexora Retail team", "has_receipt": true, "status": "flagged", "policy_check": "Above L2 limit of 3000 for client_entertainment", "created_at": "2026-11-07T10:00:00+00:00" } ] }
 ```
+
+### `GET /api/finance/claims`
+
+Requires a verified Supabase Auth user with active finance membership. Returns claims with status `submitted` or `flagged`, newest first, with employee details for review. Returns `401 UNAUTHORIZED` when the user is not signed in and `403 FORBIDDEN` when the user lacks active finance membership.
+
+```json
+{
+  "claims": [
+    {
+      "id": 21,
+      "employee_id": "E006",
+      "category": "meals",
+      "amount": 720,
+      "expense_date": "2026-11-10",
+      "description": "Client visit meal",
+      "has_receipt": true,
+      "status": "submitted",
+      "policy_check": "Within policy",
+      "created_at": "2026-11-10T10:00:00.000Z",
+      "employee": {
+        "id": "E006",
+        "name": "Fatima Sheikh",
+        "grade": "L2",
+        "department": "Finance",
+        "manager_name": "Gopal Iyer",
+        "base_city": "Mumbai"
+      }
+    }
+  ]
+}
+```
+
+### `POST /api/finance/claims/{id}/approve`
+
+Requires active finance membership. Approves a claim only while its status is `submitted` or `flagged`. The status update and audit entry are committed atomically. Returns the updated claim.
+
+### `POST /api/finance/claims/{id}/reject`
+
+Requires active finance membership and a non-empty reason:
+
+```json
+{ "reason": "Missing business purpose" }
+```
+
+Rejects a claim only while its status is `submitted` or `flagged`. The status update and audit entry, including the verified reviewer and reason, are committed atomically. Invalid or repeated transitions return `409 CLAIM_NOT_REVIEWABLE`.
 
 ### `POST /api/claims`
 
